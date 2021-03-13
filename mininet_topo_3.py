@@ -13,8 +13,8 @@ class MyTopo(Topo):
         Topo.__init__(self)
         
         hostConfig = {'cpu':1}
-        linkConfig100M = {'bw':100m}
-        linkConfig1G = {'bw':1g}
+        linkConfig100M = {'bw':100}
+        linkConfig1G = {'bw':1000}
         
         # add hosts
         h1 = self.addHost('h1',**hostConfig)
