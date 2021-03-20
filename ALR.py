@@ -23,8 +23,8 @@ class ProjectController(app_manager.RyuApp):
         super(ProjectController, self).__init__(*args, **kwargs)
         self.topology_api_app = self
         self.sta = {}
-        self.right1
-        self.dps = [] 
+        self.right1 = 0
+        self.dps = []
         self.links = 8
 
     def creat_global_view(self):
@@ -37,7 +37,7 @@ class ProjectController(app_manager.RyuApp):
                 self.sta[dpid] = 0
             else:
                 self.right1 = dpid
-        
+
     def add_init_backflow_left(self, datapath):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -138,42 +138,36 @@ class ProjectController(app_manager.RyuApp):
 
         action11 = [parser.OFPActionOutput(2)]
         action12 = [parser.OFPActionOutput(3)]
-	    action2 = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
+        action2 = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
         action3 = [parser.OFPActionSetField(ip_dscp = 10)]
 	    #actions2 = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,ofproto.OFPCML_NO_BUFFER)]
 
-	    bucket11 = parser.OFPBucket(weight=0, actions=action11)
+        bucket11 = parser.OFPBucket(weight=0, actions=action11)
         bucket12 = parser.OFPBucket(weight=0, actions=action12)
-	    bucket2 = parser.OFPBucket(weight=0, actions=action2)
+        bucket2 = parser.OFPBucket(weight=0, actions=action2)
         bucket3 = parser.OFPBucket(weight=0, actions=action3)
 
-	    buckets1 = [bucket11, bucket2, bucket3]
+        buckets1 = [bucket11, bucket2, bucket3]
         buckets2 = [bucket12, bucket2, bucket3]
 
 	    #group_mod_req = parser.OFPGroupMod(datapath=datapath, type_=ofproto.OFPGT_ALL, group_id=1, buckets=[bucket1, bucket2])
-	    mod = parser.OFPGroupMod(datapath=datapath, 
-            type_=ofproto.OFPGT_ALL, group_id=1, buckets=buckets1)
+        mod = parser.OFPGroupMod(datapath=datapath, 
+        type_=ofproto.OFPGT_ALL, group_id=1, buckets=buckets1)
         datapath.send_msg(mod)
         print(datapath.id,'added',mod)
         mod = parser.OFPGroupMod(datapath=datapath, 
             type_=ofproto.OFPGT_ALL, group_id=2, buckets=buckets2)
         datapath.send_msg(mod)
         print(datapath.id,'added',mod)
-        
 
-    @set_ev_cls(event.EventLinkAdd)
-    def make_global_view(self,ev):
-        if self.links != 0:
-            print(self.links)
-            self.links = self.links - 1
+    @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
+    def switch_features_handler(self, ev):
+        dp = ev.msg.datapath
+        if dp.id != 3:
+            self.add_init_backflow_left(dp)
+            self.add_init_flow_left(dp)
+            self.add_meter(dp)
+            self.add_group(dp)
         else:
-            self.creat_global_view()
-            for dp in self.dps:
-                if dp.id != self.right1:
-                    self.add_init_backflow_left(dp)
-                    self.add_init_flow_left(dp)
-                    self.add_meter(dp)
-                    self.add_group(dp)
-                else:
-                    self.add_init_flow_right(dp)
-                    self.add_init_backflow_right(dp)
+            self.add_init_flow_right(dp)
+            self.add_init_backflow_right(dp)
